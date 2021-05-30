@@ -1,3 +1,5 @@
-.ipynb_checkpoints/
+out/
 venv/
-*.egg-info/
+__pycache__/
+.ipynb_checkpoints/
+*.egg-info

@@ -1,11 +1,40 @@
+import logging
 import os
+import sys
+from enum import Enum
+
+import pexpect
 from pexpect.popen_spawn import PopenSpawn
+
+
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 END_STRING = "END"
 
 
 class Solver:
+    """
+    An interface for a PioSolver 2.0 process.
+
+    Logging: All I/O is logged to sys.stdout. All commands sent to the solver process
+    are prefaced by ">>" and all solver responses are prefaced by "<<".
+
+    Example usage:
+    ```
+    solver = Solver("C:/PioSOLVER/PioSOLVER2-pro.exe")
+    solver.run("is_ready")
+    solver.run("load_script_silent", SCRIPT_PATH)
+    solver.exit()
+    ```
+
+    """
+
     def __init__(self, exe: str, cwd: str = None):
         """
         Args:
@@ -18,98 +47,115 @@ class Solver:
 
         self._process = PopenSpawn(exe, cwd=os.path.dirname(exe))
         self._wait_for_startup_msg()
-        self._print_output()
-        self._set_end_string(END_STRING)
+        self._read_output()
 
-        self.hand_order = self._get_hand_order()
+        self.run("set_end_string", END_STRING)
+        self.run("set_algorithm", "auto")
+        self.run("set_threads", 0)
+        self.run("set_isomorphism", 1, 0)  # 1st arg: flop; 2nd arg: turn
 
-    def _sendline(self, line):
+    def _sendline(self, line: str) -> None:
         if "\n" in line:
-            print(f">> {line.encode('utf-8')}")
+            logger.info(f">> {line.encode('utf-8')}")
         else:
-            print(f">> {line}")
+            logger.info(f">> {line}")
         self._process.sendline(line)
 
-    def _expect(self, expr):
-        if "\n" in expr:
-            print(f"DEBUG: Expecting {expr.encode('utf-8')}")
+    def _expect(self, expr) -> int:
+        """
+        Wait for the solver process to output some expression.
+
+        expr can either be a string or a list of strings. If it's a list, wait for one
+        of the strings in the list and return its index.
+
+        """
+        if isinstance(expr, list):
+            logger.debug(f"Expecting one of {expr}")
+        elif "\n" in expr:
+            logger.debug(f"Expecting {expr.encode('utf-8')}")
         else:
-            print(f"DEBUG: Expecting {expr}")
-        self._process.expect(expr)
+            logger.debug(f"Expecting {expr}")
+        return self._process.expect(expr)
 
     def _read_output(self):
         """
         Read the solver processes' text up to the string pattern matched by the last
         call to self._process.expect.
         """
-        return self._process.before.decode().strip()
-
-    def _print_output(self):
-        output = self._read_output()
+        output = self._process.before.decode().strip()
         if "\n" in output:
-            print("<<")
+            logger.info("<<")
             for line in output.split("\n"):
-                print(line)
+                logger.info(line)
         else:
-            print(f"<< {output}")
+            logger.info(f"<< {output}")
+        return output
+
+    def _clear_output(self, timeout=1):
+        """
+        If we there's additional output after the last expect call, it will be included
+        in the next _read_output() response. This method clears the output so that this
+        doesn't happen.
+
+        This method assumes that the process doesn't produce more output after `timeout`
+        seconds have passed.
+
+        """
+        while self._process.expect([".+", pexpect.TIMEOUT], timeout) == 0:
+            pass
 
     def _wait_for_startup_msg(self):
         msg_ending = "\r\n\r\n"
         self._expect(msg_ending)
 
-    def _set_end_string(self, s):
+    def run(self, cmd: str, *args):
         """
-        Tell the PioSolver process to terminate every response with the string {s}.
+        Run a command, wait for the solver to respond with END_STRING, and return the
+        solver's response text.
+
+        This is ONLY meant to be used with commands for which the solver responds with a
+        single message. DON'T use this method with commands that result in multiple
+        return messages, such as "go".
+
+        List of commands: https://piofiles.com/docs/upi_documentation/
+
         """
-        self._sendline(f"set_end_string {s}")
+        strargs = (str(arg) for arg in args)
+        msg = " ".join([cmd, *strargs])
+        self._sendline(msg)
         self._expect(END_STRING)
-        self._print_output()
+        return self._read_output()
 
-    def _get_hand_order(self):
-        self._sendline("show_hand_order")
-        self._expect(END_STRING)
-        hand_order = self._read_output()
-        return hand_order.split(" ")
-
-    def is_ready(self):
-        self._sendline("is_ready")
-        self._expect(END_STRING)
-        self._print_output()
+    def go(self, n: int, unit: str = "seconds"):
+        self._sendline(f"go {n} {unit}")
+        self._sendline("wait_for_solver")
+        while True:
+            self._expect("END")
+            output = self._read_output()
+            if "wait_for_solver ok!" in output:
+                break
 
     def exit(self):
-        print("Killing solver process...")
+        logger.info("Killing solver process..")
         self._sendline("exit")
-
-    def bench(self):
-        self._sendline("bench")
-        self._expect(END_STRING)
-        self._print_output()
-
-    def load_script(self, filename):
-        """
-        Reads commands from a file line after line and executes them as if they were
-        inserted in stdin. After reaching EOF, go back to receiving input from stdin.
-
-        WARNING: it's not recommended to run this command from another program. Use
-        load_script_silent or manually execute commands one after another.
-
-        """
-        self._sendline(f"load_script {filename}")
-        self._expect(END_STRING)
-        self._print_output()
-
-    def load_script_silent(self, filename):
-        """
-        Like self.load_script but acts as a single command and returns only one END
-        string at the very end.
-        """
-        self._sendline(f"load_script_silent {filename}")
-        self._expect(END_STRING)
-        self._print_output()
 
 
 if __name__ == "__main__":
     # Test. TODO: remove later.
+    SCRIPT = (
+        "C:/Users/christopher/Documents/autosim/data/CO_2.5bb_BTN_8.5bb_CO_Call.txt"
+    )
+    OUTDIR = "C:/Users/christopher/Documents/autosim/out"
+    BOARD = "As5h3d"
+
+    os.makedirs(OUTDIR, exist_ok=True)
+    outpath = f"{OUTDIR}/{BOARD}.cfr"
+
     solver = Solver("C:/PioSOLVER/PioSOLVER2-pro.exe")
-    solver.is_ready()
-    solver.bench()
+    solver.run("is_ready")
+    solver.run("set_board", BOARD)
+    solver.run("load_script_silent", SCRIPT)
+    solver.run("build_tree")
+    solver.go(n=600, unit="seconds")
+    solver.run("dump_tree", outpath, "no_rivers")
+    solver.exit()
