@@ -19,17 +19,18 @@ def solve_full_tree(tree_setup, board, outdir, outname="full.cfr", timeout=600):
     solver.exit()
 
 
-def solve_flop_lines(tree_setup, flop_sizes, position, board, outdir, timeout=600):
+def solve_flop_lines(tree_setup, bet_sizes, position, board, outdir, timeout=600):
     # TODO: parallelize
-    for size in flop_sizes:
+    for size in bet_sizes:
         solver = Solver(EXEPATH)
         solver.wait_for_ready()
         solver.set_board(BOARD)
         solver.run_script(tree_setup)
-        to_remove = [s for s in flop_sizes if s != size]
+        to_remove = [s for s in bet_sizes if s != size]
         for s in to_remove:
             cmd = f"remove_line {s}" if position == "OOP" else f"remove_line 0 {s}"
             solver.run(cmd)
+            solver.add_info_line(f"#FlopConfig{POSITION}.BetSize#{size}")
         solver.build_tree()
         solver.go(timeout)
         solver.dump_tree(f"{outdir}/flop{size}.cfr")
@@ -53,11 +54,11 @@ if __name__ == "__main__":
         outname="full.cfr",
         timeout=600,
     )
-    # solve_flop_lines(
-    #     tree_setup=TREE_SETUP,
-    #     flop_sizes=tree_data["flop_sizes"],
-    #     position=POSITION,
-    #     board=BOARD,
-    #     outdir=OUTDIR,
-    #     timeout=600,
-    # )
+    solve_flop_lines(
+        tree_setup=TREE_SETUP,
+        bet_sizes=tree_data["flop_sizes"],
+        position=POSITION,
+        board=BOARD,
+        outdir=OUTDIR,
+        timeout=600,
+    )

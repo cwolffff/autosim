@@ -139,14 +139,14 @@ class Solver:
     def wait_for_ready(self):
         self.run("is_ready")
 
-    def load_tree(self, cfr_file):
-        self.run("load_tree", cfr_file)
-
     def set_board(self, board):
         self.run("set_board", board)
 
     def build_tree(self):
         self.run("build_tree")
+
+    def add_info_line(self, line):
+        self.run("add_info_line", line)
 
     def go(self, n: int, unit: str = "seconds"):
         self._sendline(f"go {n} {unit}")
