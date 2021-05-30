@@ -139,6 +139,9 @@ class Solver:
     def wait_for_ready(self):
         self.run("is_ready")
 
+    def load_tree(self, cfr_file):
+        self.run("load_tree", cfr_file)
+
     def set_board(self, board):
         self.run("set_board", board)
 
