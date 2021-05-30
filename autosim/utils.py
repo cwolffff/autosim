@@ -1,3 +1,9 @@
+import csv
+import os
+
+from constants import DATAHEADER
+
+
 def get_tree_data(tree_setup, position):
     assert position in ["OOP", "IP"]
     with open(tree_setup, "r") as f:
@@ -29,3 +35,21 @@ def _get_flop_sizes(lines, position):
         sizes.add(cbet)
     sizes = sizes - {0}
     return sorted(list(sizes))
+
+
+def write_datafile_header(path):
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=DATAHEADER)
+        writer.writeheader()
+
+
+def write_results(path, strategy, results, position):
+    assert position in ["OOP", "IP"]
+    row = {
+        "strategy": strategy,
+        "ev": results["ev_oop"] if position == "OOP" else results["ev_ip"],
+        "exploitability": results["exploitability"],
+    }
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=DATAHEADER)
+        writer.writerow(row)

@@ -1,5 +1,7 @@
+DATAHEADER = ["strategy", "ev", "exploitability"]
+
 # The ordering of hands as returned by the show_hand_order command.
-HAND_ORDER = [
+HANDORDER = [
     "2d2c",
     "2h2c",
     "2h2d",

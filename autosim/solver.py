@@ -145,17 +145,34 @@ class Solver:
     def build_tree(self):
         self.run("build_tree")
 
+    def remove_line(self, line):
+        self.run("remove_line", line)
+
     def add_info_line(self, line):
         self.run("add_info_line", line)
 
-    def go(self, n: int, unit: str = "seconds"):
-        self._sendline(f"go {n} {unit}")
+    def go(self, n=None, unit="seconds"):
+        if n is not None:
+            self._sendline(f"go {n} {unit}")
+        else:
+            self._sendline("go")
         self._sendline("wait_for_solver")
         while True:
             self._expect("END", timeout=None)
             output = self._read_output()
             if "wait_for_solver ok!" in output:
                 break
+
+    def calc_results(self):
+        response = self.run("calc_results").split("\n")
+        assert len(response) == 5, "Unexpected response to calc_results"
+        return {
+            "ev_oop": float(response[0].split(" ")[-1]),
+            "ev_ip": float(response[1].split(" ")[-1]),
+            "mes_oop": float(response[2].split(" ")[-1]),
+            "mes_ip": float(response[3].split(" ")[-1]),
+            "exploitability": float(response[4].split(" ")[-1]),
+        }
 
     def dump_tree(self, outpath: str, mode: str = "no_rivers") -> None:
         """
@@ -166,7 +183,6 @@ class Solver:
         self.run("dump_tree", outpath, mode)
 
     def exit(self):
-        logger.info("Killing solver process...")
         self._sendline("exit")
 
 
