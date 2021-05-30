@@ -27,9 +27,13 @@ class Solver:
 
     Example usage:
     ```
-    solver = Solver("C:/PioSOLVER/PioSOLVER2-pro.exe")
-    solver.run("is_ready")
-    solver.run("load_script_silent", SCRIPT_PATH)
+    solver = Solver(EXEPATH)
+    solver.wait_for_ready()
+    solver.set_board(BOARD)
+    solver.run_script(SCRIPT)
+    solver.build_tree()
+    solver.go(TIMEOUT)
+    solver.dump_tree(outpath)
     solver.exit()
     ```
 
@@ -61,7 +65,7 @@ class Solver:
             logger.info(f">> {line}")
         self._process.sendline(line)
 
-    def _expect(self, expr) -> int:
+    def _expect(self, expr, timeout=30) -> int:
         """
         Wait for the solver process to output some expression.
 
@@ -75,7 +79,7 @@ class Solver:
             logger.debug(f"Expecting {expr.encode('utf-8')}")
         else:
             logger.debug(f"Expecting {expr}")
-        return self._process.expect(expr)
+        return self._process.expect(expr, timeout)
 
     def _read_output(self):
         """
@@ -108,7 +112,7 @@ class Solver:
         msg_ending = "\r\n\r\n"
         self._expect(msg_ending)
 
-    def run(self, cmd: str, *args):
+    def run(self, cmd: str, *args, timeout=30):
         """
         Run a command, wait for the solver to respond with END_STRING, and return the
         solver's response text.
@@ -119,43 +123,68 @@ class Solver:
 
         List of commands: https://piofiles.com/docs/upi_documentation/
 
+        TODO: Maybe change name to _run. It's not clear whether this should be part of
+        the API.
+
         """
         strargs = (str(arg) for arg in args)
         msg = " ".join([cmd, *strargs])
         self._sendline(msg)
-        self._expect(END_STRING)
+        self._expect(END_STRING, timeout)
         return self._read_output()
+
+    def run_script(self, script):
+        self.run("load_script_silent", script)
+
+    def wait_for_ready(self):
+        self.run("is_ready")
+
+    def set_board(self, board):
+        self.run("set_board", board)
+
+    def build_tree(self):
+        self.run("build_tree")
 
     def go(self, n: int, unit: str = "seconds"):
         self._sendline(f"go {n} {unit}")
         self._sendline("wait_for_solver")
         while True:
-            self._expect("END")
+            self._expect("END", timeout=None)
             output = self._read_output()
             if "wait_for_solver ok!" in output:
                 break
 
+    def dump_tree(self, outpath: str, mode: str = "no_rivers") -> None:
+        """
+        Args:
+            outpath: Where to save the tree to.
+            mode: "full" or "no_turns" or "no_rivers".
+        """
+        self.run("dump_tree", outpath, mode)
+
     def exit(self):
-        logger.info("Killing solver process..")
+        logger.info("Killing solver process...")
         self._sendline("exit")
 
 
 if __name__ == "__main__":
     # Test. TODO: remove later.
-    SCRIPT = (
-        "C:/Users/christopher/Documents/autosim/data/CO_2.5bb_BTN_8.5bb_CO_Call.txt"
-    )
-    OUTDIR = "C:/Users/christopher/Documents/autosim/out"
+    EXEPATH = "C:/PioSOLVER/PioSOLVER2-pro.exe"
+    ROOTDIR = "C:/Users/christopher/Documents/autosim"
+    SCRIPT = f"{ROOTDIR}/data/test.txt"
+    OUTDIR = f"{ROOTDIR}/out"
     BOARD = "As5h3d"
+    TIMEOUT = 600
 
     os.makedirs(OUTDIR, exist_ok=True)
-    outpath = f"{OUTDIR}/{BOARD}.cfr"
+    # outpath = f"{OUTDIR}/{BOARD}.cfr"
+    outpath = f"{OUTDIR}/test_big.cfr"
 
-    solver = Solver("C:/PioSOLVER/PioSOLVER2-pro.exe")
-    solver.run("is_ready")
-    solver.run("set_board", BOARD)
-    solver.run("load_script_silent", SCRIPT)
-    solver.run("build_tree")
-    solver.go(n=600, unit="seconds")
-    solver.run("dump_tree", outpath, "no_rivers")
+    solver = Solver(EXEPATH)
+    solver.wait_for_ready()
+    solver.set_board(BOARD)
+    solver.run_script(SCRIPT)
+    solver.build_tree()
+    solver.go(TIMEOUT)
+    solver.dump_tree(outpath)
     solver.exit()
