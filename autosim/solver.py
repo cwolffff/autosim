@@ -12,7 +12,7 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s: %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 END_STRING = "END"
@@ -60,9 +60,9 @@ class Solver:
 
     def _sendline(self, line: str) -> None:
         if "\n" in line:
-            logger.info(f">> {line.encode('utf-8')}")
+            logger.debug(f">> {line.encode('utf-8')}")
         else:
-            logger.info(f">> {line}")
+            logger.debug(f">> {line}")
         self._process.sendline(line)
 
     def _expect(self, expr, timeout=30) -> int:
@@ -88,11 +88,11 @@ class Solver:
         """
         output = self._process.before.decode().strip()
         if "\n" in output:
-            logger.info("<<")
+            logger.debug("<<")
             for line in output.split("\n"):
-                logger.info(line)
+                logger.debug(line)
         else:
-            logger.info(f"<< {output}")
+            logger.debug(f"<< {output}")
         return output
 
     def _clear_output(self, timeout=1):

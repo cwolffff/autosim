@@ -8,9 +8,11 @@ def get_tree_data(tree_setup, position):
     assert position in ["OOP", "IP"]
     with open(tree_setup, "r") as f:
         lines = f.readlines()
-    pot_size = _get_pot_size(lines)
-    flop_sizes = _get_flop_sizes(lines, position)
-    return {"pot_size": pot_size, "flop_sizes": flop_sizes}
+    return {
+        "pot_size": _get_pot_size(lines),
+        "flop_sizes": _get_flop_sizes_chips(lines, position),
+        "flop_sizes_perc": _get_flop_sizes_perc(lines, position),
+    }
 
 
 def _get_pot_size(lines):
@@ -24,7 +26,7 @@ def _get_pot_size(lines):
     return pot_size
 
 
-def _get_flop_sizes(lines, position):
+def _get_flop_sizes_chips(lines, position):
     sizes = set()
     setup_lines = [line for line in lines if line.startswith("add_line")]
     for line in setup_lines:
@@ -35,6 +37,16 @@ def _get_flop_sizes(lines, position):
         sizes.add(cbet)
     sizes = sizes - {0}
     return sorted(list(sizes))
+
+
+def _get_flop_sizes_perc(lines, position):
+    relevant_lines = [line for line in lines if f"FlopConfig{position}.BetSize" in line]
+    assert (
+        len(relevant_lines) == 1
+    ), f"Tree setup script should have a line specifying FlopConfig{position}.BetSize"
+    line = relevant_lines[0]
+    sizes = line.split("#")[2][:-1].split(",")
+    return sizes
 
 
 def write_datafile_header(path):
@@ -53,3 +65,10 @@ def write_results(path, strategy, results, position):
     with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=DATAHEADER)
         writer.writerow(row)
+
+
+def load_boards(path):
+    with open(path, "r") as f:
+        lines = f.readlines()
+    lines = [line.split(":")[0] for line in lines]
+    return lines
