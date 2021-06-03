@@ -2,7 +2,7 @@ import csv
 import os
 
 
-DATAHEADER = ["strategy", "ev", "exploitability", "path"]
+DATAHEADER = ["strategy", "ev", "exploitability", "fname"]
 
 
 def get_tree_data(tree_setup, position):
