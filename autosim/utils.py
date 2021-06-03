@@ -41,10 +41,11 @@ def _get_flop_sizes_chips(lines, position):
 
 
 def _get_flop_sizes_perc(lines, position):
-    relevant_lines = [line for line in lines if f"FlopConfig{position}.BetSize" in line]
+    s = "FlopConfigIP.BetSize" if position == "IP" else "FlopConfig.BetSize"
+    relevant_lines = [line for line in lines if s in line]
     assert (
         len(relevant_lines) == 1
-    ), f"Tree setup script should have a line specifying FlopConfig{position}.BetSize"
+    ), f"Tree setup script should have a line specifying {s}"
     line = relevant_lines[0]
     sizes = line.split("#")[2][:-1].split(",")
     return sizes
