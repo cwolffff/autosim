@@ -57,6 +57,7 @@ class Solver:
         self.run("set_algorithm", "auto")
         self.run("set_threads", 0)
         self.run("set_isomorphism", 1, 0)  # 1st arg: flop; 2nd arg: turn
+        self.set_rake(perc=0.05, cap=6)
 
     def _sendline(self, line: str) -> None:
         if "\n" in line:
@@ -141,6 +142,9 @@ class Solver:
 
     def set_board(self, board):
         self.run("set_board", board)
+
+    def set_rake(self, perc, cap):
+        self.run("set_rake", perc, cap)
 
     def build_tree(self):
         self.run("build_tree")

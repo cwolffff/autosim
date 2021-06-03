@@ -1,7 +1,8 @@
 import csv
 import os
 
-from constants import DATAHEADER
+
+DATAHEADER = ["strategy", "ev", "exploitability", "path"]
 
 
 def get_tree_data(tree_setup, position):
@@ -55,12 +56,13 @@ def write_datafile_header(path):
         writer.writeheader()
 
 
-def write_results(path, strategy, results, position):
+def write_results(path, strategy, results, position, fname):
     assert position in ["OOP", "IP"]
     row = {
         "strategy": strategy,
         "ev": results["ev_oop"] if position == "OOP" else results["ev_ip"],
         "exploitability": results["exploitability"],
+        "fname": fname,
     }
     with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=DATAHEADER)
