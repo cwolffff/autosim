@@ -1,0 +1,4 @@
+pexpect
+matplotlib
+numpy
+tqdm
